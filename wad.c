@@ -8,6 +8,8 @@
 #include <stdlib.h>
 // for "memcmp"
 #include <string.h>
+// for "tolower"
+#include <ctype.h>
 // for "basename"
 #include <libgen.h>
 
@@ -40,8 +42,12 @@ struct s_wad * read_wad(const char* path)
 	// initialize a structure to hold our data
 	struct s_wad* ret = u_calloc(sizeof(struct s_wad));
 	// copy base path into name
+	//  HL tends to use lowercased WAD names and uppercased texture names
 	char *temp = strdup(path);
-	ret->name = strdup(basename(temp));
+	char *base = basename(temp);
+	ret->name = u_calloc(strlen(base) + 1);
+	for (unsigned int i = 0; i < strlen(base); i ++)
+		ret->name[i] = tolower(base[i]);
 	free(temp);
 	unsigned int texture_limit = 0;
 
