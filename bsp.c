@@ -9,6 +9,10 @@
 // for memset
 #include <string.h>
 
+// defines for lump types we care to parse
+#define LUMP_ENTITIES 0
+#define LUMP_TEXTURES 2
+
 struct s_bsp * read_bsp(const char * path)
 {
 	unsigned char buf[8];
@@ -33,17 +37,26 @@ struct s_bsp * read_bsp(const char * path)
 		ret->raw_lump_size[i] = parseU32(buf+4);
 	}
 
-	// read all lumps
-	//  skip the texture lump though, we'll handle that separately
+	// ///////////////////////
+	// read all lumps except those needing special handling
 	for (int i = 0; i < 15; i ++) {
-		if (i == 2) continue;
+		if (i == LUMP_ENTITIES || i == LUMP_TEXTURES) continue;
+
 		u_fseek( fp, lumpOffset[i] );
 		ret->raw_lump[i] = u_malloc( ret->raw_lump_size[i] );
 		u_fread(ret->raw_lump[i], ret->raw_lump_size[i], fp );
 	}
 
+	// ///////////////////////
+	// entity lump
+	u_fseek( fp, lumpOffset[LUMP_ENTITIES] );
+	ret->entity_lump_size = ret->raw_lump_size[LUMP_ENTITIES];
+	ret->entity_lump = u_malloc( ret->entity_lump_size );
+	u_fread(ret->entity_lump, ret->entity_lump_size, fp );
+
+	// ///////////////////////
 	// read the Textures block
-	u_fseek( fp, lumpOffset[2] );
+	u_fseek( fp, lumpOffset[LUMP_TEXTURES] );
 
 	u_fread(buf, 4, fp);
 	ret->texture_count = parseU32(buf);
@@ -60,7 +73,7 @@ struct s_bsp * read_bsp(const char * path)
 	// now go read each texture
 	for (unsigned int i = 0; i < ret->texture_count; i ++)
 	{
-		ret->textures[i] = read_texture(fp, lumpOffset[2] + mipTexOffsets[i]);
+		ret->textures[i] = read_texture(fp, lumpOffset[LUMP_TEXTURES] + mipTexOffsets[i]);
 	}
 
 	// don't need these any more
@@ -100,19 +113,28 @@ void write_bsp(const struct s_bsp *const bsp, const char* path)
 		u_fwrite(buf, 4, fp);
 
 		// size
-		if (i == 2) {
-			packU32(buf, texLumpSize);
-			offset += texLumpSize;
+		unsigned int lumpSize;
+		if (i == LUMP_ENTITIES) {
+			lumpSize = bsp->entity_lump_size;
+		} else if (i == LUMP_TEXTURES) {
+			lumpSize = texLumpSize;
 		} else {
-			packU32(buf, bsp->raw_lump_size[i]);
-			offset += bsp->raw_lump_size[i];
+			lumpSize = bsp->raw_lump_size[i];
 		}
+		packU32(buf, lumpSize);
+		offset += lumpSize;
+
+		// all offsets should be dword-aligned
+		offset = (offset+3)&~3;
 		u_fwrite(buf, 4, fp);
 	}
 
 	// now write all lumps
 	for (int i = 0; i < 15; i ++) {
-		if (i == 2) {
+		if (i == LUMP_ENTITIES) {
+			// Just write the Entities lump
+			u_fwrite(bsp->entity_lump, bsp->entity_lump_size, fp );
+		} else if (i == LUMP_TEXTURES) {
 			// uint32 texture_count
 			packU32(buf, bsp->texture_count);
 			u_fwrite(buf, 4, fp);
@@ -169,8 +191,14 @@ void write_bsp(const struct s_bsp *const bsp, const char* path)
 				}
 			}
 		} else {
-			// it's a lump just write it
+			// Raw unparsed lump, write it as-is
 			u_fwrite(bsp->raw_lump[i], bsp->raw_lump_size[i], fp );
+		}
+
+		// padding
+		unsigned int file_len = ftell(fp);
+		if (file_len & 3) {
+			u_fwrite("\0\0", 4 - (file_len & 3), fp);
 		}
 	}
 

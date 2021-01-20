@@ -32,6 +32,18 @@ int main (int argc, char *argv[])
 	for (int i = 3; i < argc; i ++)
 		wad[i-3] = read_wad(argv[i]);
 
+	// Warnings for duplicate texture names
+	for (int i = 0; i < wad_count - 1; i ++)
+		for (int j = i + 1; j < wad_count; j ++)
+			for (unsigned int k = 0; k < wad[i]->texture_count; k ++)
+				for (unsigned int l = 0; l < wad[j]->texture_count; l ++)
+					if (strcmp(wad[i]->textures[k]->name, wad[j]->textures[l]->name) == 0)
+						printf("Note: Texture '%s' found in both '%s' and '%s', '%s' will be used.\n",
+							wad[i]->textures[k]->name,
+							wad[i]->name,
+							wad[j]->name,
+							wad[i]->name);
+
 	// some flags before we begin
 	unsigned int unreferenced_textures = 0;
 	unsigned int embedded_textures = 0;
@@ -105,137 +117,86 @@ found:
 	//  easiest way to do this is search for the string
 	//  \n"wad" "
 
-	unsigned int wadlist_count = 0;
+	int wadlist_count = 0;
 	char **wadlist = NULL;
 
-	unsigned char *p = strstr(bsp->raw_lump[0], "\n\"wad\" \"");
+	char *p = strstr(bsp->entity_lump, "\n\"wad\" \"");
 	if (p) {
-		printf("Initial WAD list: '");
+		printf("Initial WAD list: \"");
 
 		// advance pointer until we are looking at the wad list itself
 		p += 8;
 
 		// parse wad list
 
-		unsigned char *start = p;
-		unsigned char *end = p;
-		while (*end != '"') {
+		char *start = p;
+		char *end = p - 1;
+		do {
+			end ++;
 			printf("%c", *end);
 
-			if (*end == ';') {
-				// WAD list separator
-				char *temp_wad_name = u_calloc(end - start);
-				for (int i=0; i < end - start; i ++)
-				{
-					temp_wad_name[i] = tolower(start[i]);
-				}
-
-				// see if the WAD is in the wadlist already
-				for (int i = 0; i < wadlist_count; i ++) {
-					if (strcmp(wadlist[i], temp_wad_name) == 0) {
-						// is a duplicate, can be skipped
-						free(temp_wad_name);
-						goto done;
+			if (*end == '"' || *end == ';') {
+				if (end > start) {
+					// Quotes or semicolons terminate a WAD name
+					char *temp_wad_name = u_calloc(end - start);
+					for (int i=0; i < end - start; i ++)
+					{
+						temp_wad_name[i] = tolower(start[i]);
 					}
-				}
 
-				// see if the WAD is in the command-line?
-				int matched_wad = -1;
-				for (int i = 0; i < wad_count; i ++) {
-					if (strcmp(wad[i]->name, temp_wad_name) == 0) {
-						matched_wad = i;
-						break;
+					// see if the WAD is in the wadlist already
+					for (int i = 0; i < wadlist_count; i ++) {
+						if (strcmp(wadlist[i], temp_wad_name) == 0) {
+							// is a duplicate, can be skipped
+							free(temp_wad_name);
+							goto done;
+						}
 					}
-				}
 
-				// WAD in wad-list but not on command-line
-				if (matched_wad < 0) {
-					if (! unreferenced_textures) {
-						// consider it safe to prune but only if we also have zero
-						//  unreferenced textures
-						free(temp_wad_name);
+					// see if the WAD is in the command-line?
+					int matched_wad = -1;
+					for (int i = 0; i < wad_count; i ++) {
+						if (strcmp(wad[i]->name, temp_wad_name) == 0) {
+							matched_wad = i;
+							break;
+						}
+					}
+
+					// WAD in wad-list but not on command-line
+					if (matched_wad < 0) {
+						if (! unreferenced_textures) {
+							// consider it safe to prune but only if we also have zero
+							//  unreferenced textures
+							free(temp_wad_name);
+						} else {
+							// must be kept because the unreferenced texture might
+							//  be in the Mystery WAD
+							wadlist = u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
+							wadlist[wadlist_count] = temp_wad_name;
+							wadlist_count ++;
+						}
 					} else {
-						// must be kept because the unreferenced texture might
-						//  be in the Myster WAD
-						wadlist = u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
-						wadlist[wadlist_count] = temp_wad_name;
-						wadlist_count ++;
-					}
-				} else {
-					// WAD is on CLI - we should keep it unless it has no used textures
-					if (! wad_used[matched_wad]) {
-						// WAD specified but unused, prune it
-						free(temp_wad_name);
-					} else {
-						// must be kept
-						wadlist = u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
-						wadlist[wadlist_count] = temp_wad_name;
-						wadlist_count ++;
+						// WAD is on CLI - we should keep it unless it has no used textures
+						if (! wad_used[matched_wad]) {
+							// WAD specified but unused, prune it
+							free(temp_wad_name);
+						} else {
+							// must be kept
+							wadlist = u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
+							wadlist[wadlist_count] = temp_wad_name;
+							wadlist_count ++;
+						}
 					}
 				}
+				// in any case we set start ptr to right after the terminator
 done:
 				start = end + 1;
 			} else if (*end == '/' || *end == '\\') {
 				// directory separator
-				//  advance start to end+1
+				//  advance start to end+1 (right after the sep.)
 				start = end + 1;
 			}
-			end ++;
-		}
-		// see if anything is in the final
-		if (end > start) {
-			// WAD list separator
-			char *temp_wad_name = u_calloc(end - start);
-			for (int i=0; i < end - start; i ++)
-			{
-				temp_wad_name[i] = tolower(start[i]);
-			}
-
-			// see if the WAD is in the wadlist already
-			for (int i = 0; i < wadlist_count; i ++) {
-				if (strcmp(wadlist[i], temp_wad_name) == 0) {
-					// is a duplicate, can be skipped
-					free(temp_wad_name);
-					goto done2;
-				}
-			}
-
-			// see if the WAD is in the command-line?
-			int matched_wad = -1;
-			for (int i = 0; i < wad_count; i ++) {
-				if (strcmp(wad[i]->name, temp_wad_name) == 0) {
-					matched_wad = i;
-					break;
-				}
-			}
-
-			// WAD in wad-list but not on command-line
-			if (matched_wad < 0) {
-				if (! unreferenced_textures) {
-					// consider it safe to prune but only if we also have zero
-					//  unreferenced textures
-					free(temp_wad_name);
-				} else {
-					// must be kept because the unreferenced texture might
-					//  be in the Myster WAD
-					wadlist = u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
-					wadlist[wadlist_count] = temp_wad_name;
-					wadlist_count ++;
-				}
-			} else {
-				// WAD is on CLI - we should keep it unless it has no used textures
-				if (! wad_used[matched_wad]) {
-					// WAD specified but unused, prune it
-					free(temp_wad_name);
-				} else {
-					// must be kept
-					wadlist = u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
-					wadlist[wadlist_count] = temp_wad_name;
-					wadlist_count ++;
-				}
-			}
-		}
-done2:
+		} while (*end != '"');
 
 		// final check: WADs on the CLI that are used but not in the wadlist
 		for (int i = 0; i < wad_count; i ++) {
@@ -245,7 +206,7 @@ done2:
 			int is_matched = 0;
 			for (int j = 0; j < wadlist_count; j ++) {
 				if (strcmp(wad[i]->name, wadlist[j]) == 0) {
-					is_matched = i;
+					is_matched = 1;
 					break;
 				}
 			}
@@ -259,35 +220,44 @@ done2:
 			}
 		}
 
-		printf("'\n\tFinal wadlist: '");
+		printf("\nFinal wadlist: \"");
 		for (int j = 0; j < wadlist_count; j ++) {
-			printf("%s;", wadlist[j]);
+			if (j > 0) printf(";");
+			printf("%s", wadlist[j]);
 		}
-		printf("'\n");
+		printf("\"\n");
 
 		// smash all these together into a new Entity List
-		unsigned int new_entity_list_size = (p - bsp->raw_lump[0]) + (bsp->raw_lump_size[0] - (end - bsp->raw_lump[0])) + 1;
+		                                     // before and up to "        // " until end (incl. trailing null)
+		unsigned int new_entity_lump_size = (p - bsp->entity_lump) + (bsp->entity_lump_size - (end - bsp->entity_lump));
 		for (int j = 0; j < wadlist_count; j ++) {
-			if (j > 0) new_entity_list_size ++;
-			new_entity_list_size += strlen(wadlist[j]);
+			// semicolon separator for each WAD name beyond the first
+			if (j > 0) new_entity_lump_size ++;
+			// length of each WAD name
+			new_entity_lump_size += strlen(wadlist[j]);
 		}
 
-		char *entity_list = u_calloc( new_entity_list_size );
-		strncpy(entity_list, bsp->raw_lump[0], p - bsp->raw_lump[0]);
+		// we have calculated the size of the output string, ready to allocate it
+		char *new_entity_lump = u_calloc( new_entity_lump_size );
+		// copy first N bytes - everything up to, and including, "wad" "
+		strncpy(new_entity_lump, bsp->entity_lump, p - bsp->entity_lump);
 
+		// fill the wad list
 		for (int j = 0; j < wadlist_count; j ++) {
-			if (j > 0) strcat(entity_list, ";");
-			strcat(entity_list, wadlist[j]);
+			if (j > 0) strcat(new_entity_lump, ";");
+			strcat(new_entity_lump, wadlist[j]);
 		}
 
-		strcat(entity_list, end);
+		// concatenate everything through the end
+		strcat(new_entity_lump, end);
 
 		// nuke the old entity list and replace
-		free(bsp->raw_lump[0]);
-		bsp->raw_lump[0] = entity_list;
-		bsp->raw_lump_size[0] = new_entity_list_size;
+		free(bsp->entity_lump);
+		bsp->entity_lump = new_entity_lump;
+		bsp->entity_lump_size = new_entity_lump_size;
 
 	} else {
+		// TODO: consider other ways to search for "wad", or add a new one to the "classname" "worldspawn"
 		fprintf(stderr, "Failed to find key \"wad\" in entity list\n");
 		exit(EXIT_FAILURE);
 	}

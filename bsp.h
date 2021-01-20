@@ -6,6 +6,11 @@
 //  all others are just stored as blocks of data.
 struct s_bsp
 {
+	// entity lump is a large multi-line ASCII string,
+	//  zero-terminated
+	unsigned int entity_lump_size;
+	char *entity_lump;
+
 	// texture lump is a series of texture structs
 	unsigned int texture_count;
 	struct s_texture **textures;
