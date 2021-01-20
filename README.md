@@ -3,6 +3,10 @@ Greg Kennedy, 2021
 
 Reduce the size of GoldSrc (Half-Life, Counter-Strike 1.6, etc) .BSP files by eliminating embedded textures that already exist in .WAD files.
 
+The official site for YesWADTextures is https://github.com/greg-kennedy/YesWADTextures.
+
+Windows users can find a recent download in the "Releases" section.  Other users: clone (or download) the code, then run `make` in the root folder.
+
 ## Usage
 Invoke the program like this:
 
@@ -15,6 +19,9 @@ For example, [dm\_office.bsp](https://www.moddb.com/games/half-life/addons/dm-of
     ./yeswadtextures dm_office.bsp dm_office_fixed.bsp halflife.wad
 
 will prune all but one texture from `dm_office.bsp`, and update its required WAD list to include `halflife.wad`.  The new output file measures 572,828 bytes - a 28.5% decrease!
+
+## Warning
+This tool has not been extensively tested and may have BSP-damaging bugs.  Keep backups.  It does not warn before overwriting the output file - be careful not to accidentally overwrite something valuable.  You have been warned!
 
 ## Overview
 A `.WAD` file is a collection of textures, used by games based on the Quake engine.  GoldSrc uses version 3 of the .WAD file to store and organize textures.  Half-Life ships with a handful of .WAD files, while mods (Counter-Strike) or expansions (Opposing Force) include additional packs for their content.  Map authors may also distribute a .WAD file to provide custom textures for their map.
