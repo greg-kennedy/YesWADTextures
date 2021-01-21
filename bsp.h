@@ -18,6 +18,9 @@ struct s_bsp
 	// other lumps are copied wholesale
 	unsigned int raw_lump_size[15];
 	unsigned char * raw_lump[15];
+
+	// order of lumps - helps minimize change when writing
+	unsigned int lump_order[15];
 };
 
 struct s_bsp * read_bsp(const char * path);

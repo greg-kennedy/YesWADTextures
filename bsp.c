@@ -8,6 +8,8 @@
 #include <stdlib.h>
 // for memset
 #include <string.h>
+// for UINT_MAX
+#include <limits.h>
 
 // defines for lump types we care to parse
 #define LUMP_ENTITIES 0
@@ -35,6 +37,21 @@ struct s_bsp * read_bsp(const char * path)
 		u_fread(buf, 8, fp);
 		lumpOffset[i] = parseU32(buf);
 		ret->raw_lump_size[i] = parseU32(buf+4);
+	}
+
+	// use lumpOffset to calculate lump order
+	unsigned int prevOffset = 0;
+	for (int i = 0; i < 15; i ++) {
+		unsigned int nextLump = 0;
+		unsigned int nextOffset = UINT_MAX;
+		for (int j = 0; j < 15; j ++) {
+			if (lumpOffset[j] > prevOffset && lumpOffset[j] < nextOffset) {
+				nextLump = j;
+				nextOffset = lumpOffset[j];
+			}
+		}
+		prevOffset = nextOffset;
+		ret->lump_order[i] = nextLump;
 	}
 
 	// ///////////////////////
@@ -104,12 +121,34 @@ void write_bsp(const struct s_bsp *const bsp, const char* path)
 	packU32(buf, 30U);
 	u_fwrite(buf, 4, fp);
 
-	// offsets and lengths of all items
-	//  begin with uint32 version, plus 8 bytes for each of 15 lumps
+	// compute lump offsets using BSP lump order
+	//  begin with uint32 'version', plus 8 bytes for each of 15 lumps
 	unsigned int offset = 4 + (8 * 15);
+	unsigned int lumpOffset[15];
+	for (int a = 0; a < 15; a ++) {
+		// whose turn is it?
+		int i = bsp->lump_order[a];
+
+		// this one will be placed at the next available offset
+		lumpOffset[i] = offset;
+
+		// advance by the size of this block
+		if (i == LUMP_ENTITIES) {
+			offset += bsp->entity_lump_size;
+		} else if (i == LUMP_TEXTURES) {
+			offset += texLumpSize;
+		} else {
+			offset += bsp->raw_lump_size[i];
+		}
+
+		// all offsets should be dword-aligned
+		offset = (offset+3)&~3;
+	}
+
+	// now possible to write the directory (offsets and lengths of all)
 	for (int i = 0; i < 15; i ++) {
 		// offset
-		packU32(buf, offset);
+		packU32(buf, lumpOffset[i]);
 		u_fwrite(buf, 4, fp);
 
 		// size
@@ -122,15 +161,13 @@ void write_bsp(const struct s_bsp *const bsp, const char* path)
 			lumpSize = bsp->raw_lump_size[i];
 		}
 		packU32(buf, lumpSize);
-		offset += lumpSize;
-
-		// all offsets should be dword-aligned
-		offset = (offset+3)&~3;
 		u_fwrite(buf, 4, fp);
 	}
 
 	// now write all lumps
-	for (int i = 0; i < 15; i ++) {
+	for (int a = 0; a < 15; a ++) {
+		int i = bsp->lump_order[a];
+
 		if (i == LUMP_ENTITIES) {
 			// Just write the Entities lump
 			u_fwrite(bsp->entity_lump, bsp->entity_lump_size, fp );
