@@ -29,7 +29,7 @@ struct s_bsp * read_bsp(const char * path)
 	}
 
 	// create a struct to hold our info
-	struct s_bsp *ret = u_malloc(sizeof(struct s_bsp));
+	struct s_bsp *ret = (struct s_bsp *)u_malloc(sizeof(struct s_bsp));
 
 	// get all lump info
 	unsigned int lumpOffset[15];
@@ -60,7 +60,7 @@ struct s_bsp * read_bsp(const char * path)
 		if (i == LUMP_ENTITIES || i == LUMP_TEXTURES) continue;
 
 		u_fseek( fp, lumpOffset[i] );
-		ret->raw_lump[i] = u_malloc( ret->raw_lump_size[i] );
+		ret->raw_lump[i] = (unsigned char*)u_malloc( ret->raw_lump_size[i] );
 		u_fread(ret->raw_lump[i], ret->raw_lump_size[i], fp );
 	}
 
@@ -68,7 +68,7 @@ struct s_bsp * read_bsp(const char * path)
 	// entity lump
 	u_fseek( fp, lumpOffset[LUMP_ENTITIES] );
 	ret->entity_lump_size = ret->raw_lump_size[LUMP_ENTITIES];
-	ret->entity_lump = u_malloc( ret->entity_lump_size );
+	ret->entity_lump = (char *)u_malloc( ret->entity_lump_size );
 	u_fread(ret->entity_lump, ret->entity_lump_size, fp );
 
 	// ///////////////////////
@@ -77,10 +77,10 @@ struct s_bsp * read_bsp(const char * path)
 
 	u_fread(buf, 4, fp);
 	ret->texture_count = parseU32(buf);
-	ret->textures = u_malloc(ret->texture_count * sizeof(struct texture*));
+	ret->textures = (struct s_texture **)u_malloc(ret->texture_count * sizeof(struct texture*));
 
 	// get the offsets to each texture
-	unsigned int *mipTexOffsets = u_malloc(ret->texture_count * sizeof(unsigned int));
+	unsigned int *mipTexOffsets = (unsigned int*)u_malloc(ret->texture_count * sizeof(unsigned int));
 	for (unsigned int i = 0; i < ret->texture_count; i ++)
 	{
 		u_fread(buf, 4, fp);
@@ -123,8 +123,8 @@ void write_bsp(const struct s_bsp *const bsp, const char* path)
 
 	// compute lump offsets using BSP lump order
 	//  begin with uint32 'version', plus 8 bytes for each of 15 lumps
-	unsigned int offset = 4 + (8 * 15);
-	unsigned int lumpOffset[15];
+	size_t offset = 4 + (8 * 15);
+	size_t lumpOffset[15];
 	for (int a = 0; a < 15; a ++) {
 		// whose turn is it?
 		int i = bsp->lump_order[a];
@@ -152,7 +152,7 @@ void write_bsp(const struct s_bsp *const bsp, const char* path)
 		u_fwrite(buf, 4, fp);
 
 		// size
-		unsigned int lumpSize;
+		size_t lumpSize;
 		if (i == LUMP_ENTITIES) {
 			lumpSize = bsp->entity_lump_size;
 		} else if (i == LUMP_TEXTURES) {

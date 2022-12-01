@@ -9,8 +9,8 @@
 /* endianness */
 #define parseU32(x) (*(x) | (*(x+1) << 8) | (*(x+2) << 16) | (*(x+3) << 24))
 #define parseU16(x) (*(x) | (*(x+1) << 8))
-#define packU32(x,y) { *(x) = (y & 0xFF); *(x+1) = ((y >> 8) & 0xFF); *(x+2) = ((y >> 16) & 0xFF); *(x+3) = ((y >> 24) & 0xFF); }
-#define packU16(x,y) { *(x) = (y & 0xFF); *(x+1) = ((y >> 8) & 0xFF); }
+#define packU32(x,y) { *(x) = (unsigned char)(y & 0xFF); *(x+1) = (unsigned char)((y >> 8) & 0xFF); *(x+2) = (unsigned char)((y >> 16) & 0xFF); *(x+3) = (unsigned char)((y >> 24) & 0xFF); }
+#define packU16(x,y) { *(x) = (unsigned char)(y & 0xFF); *(x+1) = (unsigned char)((y >> 8) & 0xFF); }
 
 /* file handling */
 #define u_fopen(fname,mode) u_fopen_int(fname, mode, __FILE__, __LINE__)

@@ -4,11 +4,14 @@
 // This is only a partial decoding of a BSP file.
 //  Since we only care about the ENTITY and TEXTURE lumps,
 //  all others are just stored as blocks of data.
+
+#include <stddef.h>
+
 struct s_bsp
 {
 	// entity lump is a large multi-line ASCII string,
 	//  zero-terminated
-	unsigned int entity_lump_size;
+	size_t entity_lump_size;
 	char *entity_lump;
 
 	// texture lump is a series of texture structs
@@ -16,7 +19,7 @@ struct s_bsp
 	struct s_texture **textures;
 
 	// other lumps are copied wholesale
-	unsigned int raw_lump_size[15];
+	size_t raw_lump_size[15];
 	unsigned char * raw_lump[15];
 
 	// order of lumps - helps minimize change when writing

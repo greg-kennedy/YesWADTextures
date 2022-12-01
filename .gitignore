@@ -51,6 +51,13 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+# Visual Studio
+*.suo
+*.ncb
+*.user
+Debug/
+Release/
+
 # test data
 *.bsp
 *.wad

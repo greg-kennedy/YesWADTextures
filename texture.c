@@ -23,13 +23,13 @@ struct s_texture* read_texture(FILE *const fp, const unsigned int offset)
 		levelOffs[i] = parseU32(buf+24+4*i);
 
 	// create struct to hold the copied texture data
-	struct s_texture *ret = u_calloc(sizeof(struct s_texture));
+	struct s_texture *ret = (struct s_texture *)u_calloc(sizeof(struct s_texture));
 
 	// copy name - uppercased
 	for (int c = 0; c < 15; c ++) {
 		if (buf[c] == '\0')
 			break;
-		ret->name[c] = toupper(buf[c]);
+		ret->name[c] = (char)toupper(buf[c]);
 	}
 
 	// copy other values
@@ -45,7 +45,7 @@ struct s_texture* read_texture(FILE *const fp, const unsigned int offset)
 
 			u_fseek(fp, offset + levelOffs[i]);
 
-			ret->level[i] = u_malloc(width * height);
+			ret->level[i] = (unsigned char *)u_malloc(width * height);
 			u_fread(ret->level[i], width * height, fp);
 			width >>= 1;
 			height >>= 1;
@@ -54,7 +54,7 @@ struct s_texture* read_texture(FILE *const fp, const unsigned int offset)
 		u_fread(buf, 2, fp);
 		ret->palette_count = parseU16(buf);
 
-		ret->palette = u_malloc(ret->palette_count * 3);
+		ret->palette = (unsigned char *)u_malloc(ret->palette_count * 3);
 		u_fread(ret->palette, ret->palette_count * 3, fp);
 	}
 

@@ -28,7 +28,7 @@ int main (int argc, char *argv[])
 
 	// read every WAD file and get the Directory out
 	int wad_count = argc - 3;
-	struct s_wad** wad = u_calloc(wad_count * sizeof(struct wad*));
+	struct s_wad** wad = (struct s_wad **)u_calloc(wad_count * sizeof(struct wad*));
 	for (int i = 3; i < argc; i ++)
 		wad[i-3] = read_wad(argv[i]);
 
@@ -47,7 +47,7 @@ int main (int argc, char *argv[])
 	// some flags before we begin
 	unsigned int unreferenced_textures = 0;
 	unsigned int embedded_textures = 0;
-	unsigned int *wad_used = u_calloc(wad_count * sizeof(unsigned int));
+	unsigned int *wad_used = (unsigned int *)u_calloc(wad_count * sizeof(unsigned int));
 
 	// identify duplicates
 	for (unsigned int i = 0; i < bsp->texture_count; i ++) {
@@ -138,10 +138,10 @@ found:
 			if (*end == '"' || *end == ';') {
 				if (end > start) {
 					// Quotes or semicolons terminate a WAD name
-					char *temp_wad_name = u_calloc(end - start);
+					char *temp_wad_name = (char *)u_calloc(end - start);
 					for (int i=0; i < end - start; i ++)
 					{
-						temp_wad_name[i] = tolower(start[i]);
+						temp_wad_name[i] = (char)tolower(start[i]);
 					}
 
 					// see if the WAD is in the wadlist already
@@ -171,7 +171,7 @@ found:
 						} else {
 							// must be kept because the unreferenced texture might
 							//  be in the Mystery WAD
-							wadlist = u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
+							wadlist = (char **)u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
 							wadlist[wadlist_count] = temp_wad_name;
 							wadlist_count ++;
 						}
@@ -182,7 +182,7 @@ found:
 							free(temp_wad_name);
 						} else {
 							// must be kept
-							wadlist = u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
+							wadlist = (char **)u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
 							wadlist[wadlist_count] = temp_wad_name;
 							wadlist_count ++;
 						}
@@ -214,7 +214,7 @@ done:
 			// used WAD from CLI not in list - append it
 			if (! is_matched) {
 				// must be kept
-				wadlist = u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
+				wadlist = (char **)u_realloc(wadlist, sizeof(char *) * (wadlist_count + 1));
 				wadlist[wadlist_count] = strdup(wad[i]->name);
 				wadlist_count ++;
 			}
@@ -229,7 +229,7 @@ done:
 
 		// smash all these together into a new Entity List
 		                                     // before and up to "        // " until end (incl. trailing null)
-		unsigned int new_entity_lump_size = (p - bsp->entity_lump) + (bsp->entity_lump_size - (end - bsp->entity_lump));
+		size_t new_entity_lump_size = (p - bsp->entity_lump) + (bsp->entity_lump_size - (end - bsp->entity_lump));
 		for (int j = 0; j < wadlist_count; j ++) {
 			// semicolon separator for each WAD name beyond the first
 			if (j > 0) new_entity_lump_size ++;
@@ -238,7 +238,7 @@ done:
 		}
 
 		// we have calculated the size of the output string, ready to allocate it
-		char *new_entity_lump = u_calloc( new_entity_lump_size );
+		char *new_entity_lump = (char *)u_calloc( new_entity_lump_size );
 		// copy first N bytes - everything up to, and including, "wad" "
 		strncpy(new_entity_lump, bsp->entity_lump, p - bsp->entity_lump);
 

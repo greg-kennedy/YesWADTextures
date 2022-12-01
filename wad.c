@@ -38,7 +38,7 @@ struct s_wad * read_wad(const char* path)
 	unsigned int dirOffset = parseU32(buf+8);
 
 	// initialize a structure to hold our data
-	struct s_wad* ret = u_calloc(sizeof(struct s_wad));
+	struct s_wad* ret = (struct s_wad *)u_calloc(sizeof(struct s_wad));
 	// copy base path into name
 	//  HL tends to use lowercased WAD names and uppercased texture names
 	const char *base = path + strlen(path);
@@ -46,9 +46,9 @@ struct s_wad * read_wad(const char* path)
 		base--;
 	} while (base > path && *base != '/' && *base != '\\');
 
-	ret->name = u_calloc(strlen(base) + 1);
+	ret->name = (char *)u_calloc(strlen(base) + 1);
 	for (unsigned int i = 0; i < strlen(base); i ++)
-		ret->name[i] = tolower(base[i]);
+		ret->name[i] = (char)tolower(base[i]);
 
 	unsigned int texture_limit = 0;
 
@@ -56,7 +56,7 @@ struct s_wad * read_wad(const char* path)
 	printf("WAD3 '%s': %u entries beginning at offset %u\n", ret->name, numEntries, dirOffset);
 	u_fseek( fp, dirOffset );
 
-	struct dir_entry* directory = u_calloc(numEntries * sizeof(struct dir_entry));
+	struct dir_entry* directory = (struct dir_entry *)u_calloc(numEntries * sizeof(struct dir_entry));
 
 	for (unsigned int i = 0; i < numEntries; i ++)
 	{
@@ -93,7 +93,7 @@ struct s_wad * read_wad(const char* path)
 		// add it to the list
 		if (ret->texture_count == texture_limit) {
 			texture_limit = (texture_limit << 1) + 1;
-			ret->textures = u_realloc(ret->textures, texture_limit * sizeof(struct s_texture*));
+			ret->textures = (struct s_texture **)u_realloc(ret->textures, texture_limit * sizeof(struct s_texture*));
 		}
 		ret->textures[ret->texture_count] = tex;
 		ret->texture_count ++;
